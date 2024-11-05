@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Working Memory Experiment</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            background-color: #f4f4f4;
+        }
+        #experiment-area {
+            display: none;
+            text-align: center;
+        }
+        input[type="text"] {
+            width: 50px;
+            text-align: center;
+            font-size: 24px;
+        }
+        button {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+		#random-number {
+			position: absolute;
+			font-size: 50px;
+			top: 400px;
+		}
+		textarea {
+			font-size: 16px;
+		}
+		::placeholder { 
+			font-size: 16px; 
+		}
+		#input-display > div {
+			margin-bottom: 10px;
+			font-size: 30px;
+		}
+		#ready {
+			font-size: 100px;
+		}
+		h1 {
+			text-align: center;
+			margin-bottom: 50px;
+        }
+		#intro {
+			justify-content: center;
+		}
+		a {
+			text-decoration: none;
+			color: black;
+		}
+    </style>
+</head>
+<body>
+	<h1 id="intro-h1">Wait for Instruction Before Starting</h1>
+    <div id="intro">
+        <textarea id="user-text" rows="4" cols="50" placeholder="Enter your name here..."></textarea>
+        <br>
+        <button id="begin">Begin</button>
+    </div>
+
+    <div id="experiment-area">
+		<div id="ready" style="display: none;">Ready?</div>
+        <div id="countdown" style="font-size: 150px;"></div>
+        <div id="random-number"></div>
+        <div id="input-display" style="display: none;">
+			<div>Input the answer:</div>
+		</div>
+        <button id="submit" style="display: none;">Submit</button>
+        <div id="result"></div>
+    </div>
+	<div id="score"></div>
+
+    <script>
+        let userText = "";
+        let currentRun = 0;
+        let totalCorrect = 0;
+        let totalRuns = 5;
+        let currentDifficulty = 3;
+        let randomNumbers = [];
+		
+		document.getElementById('intro').addEventListener('keydown', () => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				beginProcess();
+			}
+		});
+        document.getElementById('begin').addEventListener('click', () => {
+			beginProcess();
+		});
+		
+		function beginProcess() {
+            userText = document.getElementById('user-text').value.trim();
+            if (!userText) {
+                alert("Please enter your name before starting.");
+                return;
+            }
+            document.getElementById('intro').style.display = 'none';
+            document.getElementById('intro-h1').style.display = 'none';
+            document.getElementById('experiment-area').style.display = 'block';
+            startExperiment();
+        }
+
+        function startExperiment() {
+            currentRun = 0;
+            totalCorrect = 0;
+            showTrial();
+        }
+
+        function showTrial() {
+            if (currentRun < totalRuns) {
+                currentRun++;
+                randomNumbers = [];
+                startCountdown(currentRun === 1 ? 5 : 3); // 5s Between Sets; 3s Between Reps
+            } else {
+                moveToNextDifficulty();
+            }
+        }
+
+        function startCountdown(seconds) {
+			const readyElement = document.getElementById('ready');
+			readyElement.style.display = 'block'; // Show "Ready?" message
+			setTimeout(() => {
+				readyElement.style.display = 'none'; // Hide after a brief moment
+     		    let count = seconds;
+        		const countdownElement = document.getElementById('countdown');
+				countdownElement.innerText = count;
+				countdownElement.style.display = 'block';
+
+				const countdownInterval = setInterval(() => {
+					count--;
+					countdownElement.innerText = count;
+					if (count === 0) {
+						clearInterval(countdownInterval);
+						countdownElement.style.display = 'none';
+						setTimeout(() => showRandomNumbers(currentDifficulty), 750); // Delay between Countdown and Random #'s
+					}
+				}, 1000);
+			}, 1000);
+        }
+
+        function showRandomNumbers(count) {
+            randomNumbers = Array.from({ length: count }, () => Math.floor(Math.random() * 9) + 1);
+            let index = 0;
+            const randomNumberElement = document.getElementById('random-number');
+            randomNumberElement.style.display = 'block';
+
+            const displayNumber = () => {
+                if (index < randomNumbers.length) {
+                    randomNumberElement.innerText = randomNumbers[index];
+                    index++;
+                    setTimeout(() => {
+                        randomNumberElement.innerText = '';
+                        setTimeout(displayNumber, 500);
+                    }, 500);
+                } else {
+                    randomNumberElement.style.display = 'none';
+                    showInputDisplay(count);
+                }
+            };
+            displayNumber();
+        }
+
+        function showInputDisplay(count) {
+			const inputDisplay = document.getElementById('input-display');
+				inputDisplay.innerHTML = "<div>Input the Numbers in Reverse Order:</div>" + 
+                `${Array(count).fill('<input type="text" maxlength="1">').join(' - ')}`;
+			inputDisplay.style.display = 'block';
+			document.getElementById('submit').style.display = 'block';
+			
+			const inputs = document.querySelectorAll('#input-display input'); // Autofocuses
+            inputs[0].focus();
+
+            inputs.forEach((input, index) => {
+                input.addEventListener('input', () => {
+                    if (input.value.length === 1 && index < inputs.length - 1) { // Focuses the next box
+                        inputs[index + 1].focus(); 
+                    }
+                });
+            });
+        }
+		
+		document.getElementById('experiment-area').addEventListener('keydown', () => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				submitAnswer();
+			}
+		});
+        document.getElementById('submit').addEventListener('click', () => {
+			submitAnswer();
+		});
+		
+		function submitAnswer() {
+            const inputs = document.querySelectorAll('#input-display input');
+            const userInputs = Array.from(inputs).map(input => input.value);
+            const resultElement = document.getElementById('result');
+			
+			if (userInputs.includes("")) {
+				alert("Please fill in all answer boxes before submitting.");
+				return;
+			}
+			
+            const reversedRandomNumbers = [...randomNumbers].reverse(); // Reverse #'s
+            if (JSON.stringify(userInputs) === JSON.stringify(reversedRandomNumbers.map(String))) { // Compare #'s
+                totalCorrect++;
+                resultElement.innerText = "Correct!";
+            } else {
+                resultElement.innerText = "Incorrect.";
+            }
+
+            setTimeout(() => { // Clears screen after 1 second
+                resultElement.innerText = '';
+                document.getElementById('input-display').style.display = 'none';
+                document.getElementById('submit').style.display = 'none';
+                showTrial();
+            }, 1000);
+        }
+
+        function moveToNextDifficulty() {
+            if (totalCorrect >= 3) {
+                currentDifficulty++; // Increase difficulty
+                startExperiment(); // Restart with new difficulty
+            } else {
+                endExperiment();
+            }
+        }
+        function endExperiment() {
+			const score = currentDifficulty - 1; // Sets score as previous difficulty level
+			window.localStorage.setItem('VRDSscore', score);
+			document.getElementById("score").innerHTML = `
+			<h1>Your Final Score: ${score}</h1>
+			<p>Your Name: ${userText}</p>
+			<button><a href="ARDS.html">Continue</a></button>`;
+			window.location.href = 'Data.html';
+		}
+    </script>
+</body>
+</html>
